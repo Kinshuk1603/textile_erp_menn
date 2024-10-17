@@ -1,22 +1,38 @@
 import express from 'express';
-import connectDB from '../config/db';
+import mongoose from 'mongoose';
 import cors from 'cors';
+import dotenv from 'dotenv';
+import bodyParser from 'body-parser';
+import authRoutes from './routes/auth'; // Import auth routes
 
-// Initialize Express app
+dotenv.config();
+
 const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middleware
 app.use(cors());
 app.use(express.json());
+app.use(bodyParser.json()); // Parse JSON bodies
 
-// Connect to MongoDB
-connectDB();
+// MongoDB connection
+mongoose.connect(process.env.MONGODB_URI as string)
+.then(() => {
+  console.log('MongoDB connected');
+})
+.catch(err => {
+  console.error('MongoDB connection error:', err);
+});
+
+// Use authentication routes
+app.use('/api/auth', authRoutes); // Use auth routes under /api/auth
 
 // Sample route
 app.get('/', (req, res) => {
-  res.send('Hello World from Express and MongoDB with TypeScript!');
+  res.send('API is running');
 });
 
-// Start the server
-const PORT = 3001;
+// Start server
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server is running on http://localhost:${PORT}`);
 });
