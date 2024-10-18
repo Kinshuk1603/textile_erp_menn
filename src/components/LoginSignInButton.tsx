@@ -1,18 +1,35 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import LoginForm from '../components/Login';
 import SignUpForm from '../components/Signup';
 import LoginIcon from '@mui/icons-material/Login';
 import HowToRegIcon from '@mui/icons-material/HowToReg';
 import { Button } from '@mui/material';
+import { useRouter, useSearchParams } from 'next/navigation';
+
 
 const LoginSignInPage: React.FC = () => {
-  const [isLoginMode, setIsLoginMode] = useState(true); // To toggle between Login and Signup
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const mode = searchParams.get('mode'); // Get the query parameter to determine mode
+  const isLoginMode = mode !== 'signup'; // Default to login if no mode is specified
 
   const handleToggleMode = () => {
-    setIsLoginMode((prevMode) => !prevMode);
+    if (isLoginMode) {
+      router.push('/login?mode=signup'); // Change URL to /login?mode=signup
+    } else {
+      router.push('/login?mode=login'); // Change URL to /login?mode=login
+    }
   };
+
+  useEffect(() => {
+    // If there's no mode in the query params, default to 'login'
+    if (!mode) {
+      router.push('/login?mode=login');
+    }
+  }, [mode, router]);
+
 
   return (
     <div>

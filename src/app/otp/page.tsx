@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { TextField, Button, Typography, Box, CircularProgress } from '@mui/material';
 import { useRouter } from 'next/navigation';
+import SnackbarNotification from '../../components/SnackbarNotification'; // Import your SnackbarNotification component
 
 interface OTPFormInputs {
   otp: string;
@@ -13,6 +14,9 @@ const OTPPage: React.FC = () => {
   const { register, handleSubmit, formState: { errors } } = useForm<OTPFormInputs>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [snackbarOpen, setSnackbarOpen] = useState(false); // Snackbar open state
+  const [snackbarMessage, setSnackbarMessage] = useState(''); // Snackbar message
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success'); // Snackbar severity
   const [email, setEmail] = useState<string | null>(null);
   const router = useRouter();
 
@@ -30,6 +34,7 @@ const OTPPage: React.FC = () => {
   const onSubmit = async (data: OTPFormInputs) => {
     setIsSubmitting(true);
     setErrorMessage('');
+    setSnackbarOpen(false); // Reset snackbar state
 
     try {
       const response = await fetch('http://localhost:5000/api/auth/verify-otp', {
@@ -44,21 +49,44 @@ const OTPPage: React.FC = () => {
       });
 
       const result = await response.json();
+
+      // Show spinner for 500ms to simulate the loading time
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       if (response.ok) {
         // Store the JWT token in local storage
         localStorage.setItem('token', result.token);
-        
-        // OTP verified successfully, redirect to home page
-        router.push('/'); 
+
+        // Show success notification
+        setSnackbarMessage('OTP verified successfully! Redirecting...');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+
+        // Continue showing spinner after OTP verification
+        setTimeout(() => {
+          // Redirect to home page after a delay of 2 seconds
+          router.push('/');
+        }, 2000); // 2 seconds delay
       } else {
-        setErrorMessage(result.message || 'Invalid OTP');
+        // Show error notification
+        setSnackbarMessage(result.message || 'Invalid OTP');
+        setSnackbarSeverity('error'); // Set severity to error
+        setSnackbarOpen(true);
       }
     } catch (error) {
       console.error(error);
-      setErrorMessage('Something went wrong. Please try again.');
+      // Show error notification
+      setSnackbarMessage('Something went wrong. Please try again.');
+      setSnackbarSeverity('error'); // Set severity to error
+      setSnackbarOpen(true);
     } finally {
+      // Stop showing spinner after the API call
       setIsSubmitting(false);
     }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbarOpen(false);
   };
 
   return (
@@ -74,6 +102,7 @@ const OTPPage: React.FC = () => {
         className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md"
         sx={{
           backgroundColor: '#fff',
+          position: 'relative', // To position the snackbar above the spinner
         }}
       >
         <Typography
@@ -91,15 +120,16 @@ const OTPPage: React.FC = () => {
           <Typography className="text-red-500 mb-4">{errorMessage}</Typography>
         )}
 
+
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
           <TextField
             fullWidth
             id="otp"
             label="OTP"
             variant="outlined"
-            {...register('otp', { required: 'OTP is required', minLength: 6, maxLength: 6 })}
+            {...register('otp', { required: 'OTP is required', minLength: { value: 6, message: 'OTP must be 6 digits' }, maxLength: { value: 6, message: 'OTP must be 6 digits' } })}
             error={!!errors.otp}
-            helperText={errors.otp ? 'OTP must be 6 digits' : ''}
+            helperText={errors.otp ? errors.otp.message : ''}
             sx={{
               mb: 2,
               '& .MuiOutlinedInput-root': {
@@ -160,7 +190,29 @@ const OTPPage: React.FC = () => {
             )}
           </Button>
         </form>
+        {isSubmitting && (
+          <Box
+            className="fixed inset-0 flex items-center justify-center"
+            sx={{
+              backgroundColor: 'rgba(0, 0, 0, 0.5)', // Black overlay with opacity
+              backdropFilter: 'blur(5px)', // Blurry background
+              zIndex: 1000,
+            }}
+          >
+            <CircularProgress />
+          </Box>
+        )}
       </Box>
+
+      {snackbarOpen && (
+        <SnackbarNotification
+          open={snackbarOpen}
+          onClose={handleCloseSnackbar}
+          message={snackbarMessage}
+          severity={snackbarSeverity} // Pass severity to Snackbar
+          sx={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }} // Position the snackbar above the spinner
+        />
+      )}
     </Box>
   );
 };
