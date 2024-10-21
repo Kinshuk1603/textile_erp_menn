@@ -33,7 +33,7 @@ export default function RootLayout({
         <meta name="description" content={metadata.description as string} />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-200`}
       >
         {children}
       </body>

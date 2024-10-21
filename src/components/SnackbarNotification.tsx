@@ -11,7 +11,7 @@ interface SnackbarNotificationProps {
     open: boolean;
     onClose: () => void;
     message: string;
-    severity: 'success' | 'error'; // Added severity prop
+    severity: 'success' | 'error' | 'warning' | 'info'; // Updated severity prop
     sx?: React.CSSProperties; // Add this line to accept sx prop
 }
 

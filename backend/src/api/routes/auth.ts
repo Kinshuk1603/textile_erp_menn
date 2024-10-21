@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { sendOTPEmail } from "../utils/emailUtil";
 import { generateOTP } from "../utils/otpUtil";
-import { loginSchema } from "../validationSchemas";
+import { loginSchema } from "../validation/userValidation";
 import User from "../models/User";
 import { z } from "zod";
 
