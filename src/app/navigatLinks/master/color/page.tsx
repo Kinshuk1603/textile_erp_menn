@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import {
   TextField,
@@ -26,23 +26,116 @@ import SearchIcon from '@mui/icons-material/Search';
 import Navbar from '../../../../components/Navbar';
 
 type FormData = {
+
   millName: string;
 };
 
+type MillData = {
+  _id: string;
+  millName: string;
+  createdAt: string;
+  updatedAt: string;
+  // Add any other fields that your API might return
+};
+// Create API utility function to connect to your backend
+const createMill = async (data: { millName: string }) => {
+  const response = await fetch('http://localhost:5000/api/mills', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to create mill');
+  }
+
+  return await response.json(); // Return the created mill data
+};
+
+// Get all mills API function
+const getMills = async (page: number, limit: number, search: string) => {
+  const response = await fetch(`http://localhost:5000/api/mills?page=${page}&limit=${limit}&search=${search}`);
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch mills');
+  }
+
+  return await response.json(); // Return the list of mills
+};
+
+
 const ColorPage: React.FC = () => {
   const { register, handleSubmit, reset, setError, clearErrors, formState: { errors } } = useForm<FormData>();
-  const [submittedData, setSubmittedData] = useState<FormData[]>([]);
+  const [submittedData, setSubmittedData] = useState<MillData[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage] = useState(5);
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState<{ message: string; success: boolean } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [totalMills, setTotalMills] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  console.log(`Total Mills: ${totalMills}`);
 
+  const fetchMills = useCallback(async () => {
+    setLoading(true); // Start loading
+    try {
+      const data = await getMills(page + 1, rowsPerPage, searchTerm); // Use the getMills function
+
+      console.log('Fetched mills:', data); // Log the parsed data
+
+      // Check if data has the expected structure
+      if (data && Array.isArray(data.mills)) {
+        setSubmittedData(data.mills); // Set state with the mills array
+        setTotalMills(data.totalMills); // Update total mills
+        setTotalPages(data.totalPages); // Update total pages
+      } else {
+        console.error('Fetched data is not valid:', data);
+        setNotification({ message: 'Error fetching mills', success: false });
+      }
+    } catch (error) {
+      console.error('Error fetching mills:', error);
+      setNotification({ message: 'Error fetching mills', success: false });
+    } finally {
+      setLoading(false); // Stop loading
+    }
+  }, [page, rowsPerPage, searchTerm]); // Add any dependencies the function uses
+
+  useEffect(() => {
+    fetchMills();
+  }, [fetchMills]); // Add fetchMills to dependencies Refetch when page or searchTerm changes
+
+
+
+
+
+  // const onSubmit: SubmitHandler<FormData> = async (data) => {
+  //   setLoading(true); // Start loading
+
+  //   // Simulating async operation (e.g., API call)
+  //   await new Promise((resolve) => setTimeout(resolve, 500)); // Shortened delay
+
+  //   // Check for empty input
+  //   if (!data.millName) {
+  //     setError('millName', {
+  //       type: 'manual',
+  //       message: 'Mill Name is required',
+  //     });
+  //     setNotification(null); // Clear notification
+  //   } else if (submittedData.some((entry) => entry.millName.toUpperCase() === data.millName.toUpperCase())) {
+  //     setNotification({ message: 'Mill name already exists', success: false });
+  //   } else {
+  //     setSubmittedData([...submittedData, { millName: data.millName.toUpperCase() }]);
+  //     reset(); // Clear the input field
+  //     setNotification({ message: 'Mill added successfully', success: true });
+  //     clearErrors(); // Clear errors dynamically after successful submission
+  //   }
+
+  //   setLoading(false); // Stop loading
+  // };
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     setLoading(true); // Start loading
-
-    // Simulating async operation (e.g., API call)
-    await new Promise((resolve) => setTimeout(resolve, 500)); // Shortened delay
 
     // Check for empty input
     if (!data.millName) {
@@ -50,14 +143,24 @@ const ColorPage: React.FC = () => {
         type: 'manual',
         message: 'Mill Name is required',
       });
-      setNotification(null); // Clear notification
+      setLoading(false);
+      return; // Exit early
     } else if (submittedData.some((entry) => entry.millName.toUpperCase() === data.millName.toUpperCase())) {
       setNotification({ message: 'Mill name already exists', success: false });
-    } else {
-      setSubmittedData([...submittedData, { millName: data.millName.toUpperCase() }]);
+      setLoading(false);
+      return; // Exit early
+    }
+
+    try {
+      // Call the API to create a new mill
+      const newMill = await createMill({ millName: data.millName.toUpperCase() });
+      setSubmittedData((prev) => [...prev, newMill]); // Add new mill to state
       reset(); // Clear the input field
       setNotification({ message: 'Mill added successfully', success: true });
       clearErrors(); // Clear errors dynamically after successful submission
+    } catch (error) {
+      console.error('Error creating mill:', error);
+      setNotification({ message: 'Error adding mill', success: false });
     }
 
     setLoading(false); // Stop loading
@@ -66,7 +169,12 @@ const ColorPage: React.FC = () => {
   const filteredData = submittedData.filter((entry) =>
     entry.millName.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  // Calculate the start and end indices for pagination
+  const startIndex = page * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
 
+  // Use filteredData for slicing to get the current page's mills
+  const currentMills = filteredData.slice(startIndex, endIndex);
   return (
     <>
       <Navbar />
@@ -161,7 +269,7 @@ const ColorPage: React.FC = () => {
                         placeholder="Search Mill"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className='bg-white rounded-3xl border-none outline-none' // Removed default border
+                        className='bg-white rounded-3xl border-none outline-none uppercase' // Removed default border
                         InputProps={{
                           startAdornment: <SearchIcon className='text-blue-300' style={{ marginRight: 8 }} />,
                         }}
@@ -176,14 +284,14 @@ const ColorPage: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredData.length > 0 ? (
-                  filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((data, index) => (
+                {currentMills.length > 0 ? (
+                  currentMills.map((data, index) => (
                     <TableRow
-                      key={index}
+                      key={data._id} // Use unique ID for the key
                       className={`hover:bg-blue-50 ${index % 2 === 0 ? 'bg-white' : 'bg-blue-100'}`}
                       style={{ height: '30px', borderBottom: '1px solid #000' }}
                     >
-                      <TableCell align="left" className="text-sm md:text-lg border-r-2 border-r-black capitalize">{index + 1 + page * rowsPerPage}</TableCell>
+                      <TableCell align="left" className="text-sm md:text-lg border-r-2 border-r-black capitalize">{startIndex + index + 1}</TableCell>
                       <TableCell align="left" className="text-sm md:text-lg capitalize">{data.millName}</TableCell>
                     </TableRow>
                   ))
@@ -203,7 +311,7 @@ const ColorPage: React.FC = () => {
             <Button
               variant="contained"
               color="primary"
-              onClick={() => setPage(page - 1)}
+              onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
               disabled={page === 0}
               className="flex items-center rounded-full md:w-auto h-10 w-8" // Rounded full on medium and larger screens, fixed size on smaller screens
               startIcon={<ChevronLeft />}
@@ -212,24 +320,29 @@ const ColorPage: React.FC = () => {
             </Button>
 
             <Typography variant="body2" className="hidden md:block text-center">
-              Page {page + 1} of {Math.ceil(filteredData.length / rowsPerPage) || 1}
+              Page {page + 1} of {totalPages || 1} {/* Use totalPages from state */}
             </Typography>
 
             <Button
               variant="contained"
               color="primary"
-              onClick={() => setPage(page + 1)}
-              disabled={page >= Math.ceil(filteredData.length / rowsPerPage) - 1}
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages - 1))}
+              disabled={page >= totalPages - 1} // Disable if on the last page
               className="flex items-center rounded-full"
               endIcon={<ChevronRight />}
             >
               <span className="hidden md:inline">Next</span>
             </Button>
+            {/* Loading Indicator */}
+            {loading && (
+              <CircularProgress className="absolute top-2 right-2" />
+            )}
           </div>
         </div>
       </div>
     </>
   );
 };
+
 
 export default ColorPage;

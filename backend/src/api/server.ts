@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import bodyParser from 'body-parser';
 import authRoutes from './routes/auth'; // Import auth routes
 import colorRoutes from './routes/colorRoutes';
+import millRoutes from './routes/millRoutes'
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ mongoose.connect(process.env.MONGODB_URI as string)
 app.use('/api/auth', authRoutes); // Use auth routes under /api/auth
 // Use the color routes
 app.use('/api', colorRoutes); // Prefix with /api or adjust as needed
+app.use('/api', millRoutes); // Prefix with /api or adjust as needed
 
 // Sample route
 app.get('/', (req, res) => {
